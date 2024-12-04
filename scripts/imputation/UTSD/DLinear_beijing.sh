@@ -1,0 +1,115 @@
+export CUDA_VISIBLE_DEVICES=0
+
+model_name=DLinear
+
+python -u run.py \
+  --task_name imputation \
+  --is_training 1 \
+  --root_path ./dataset/UTSD-full-npy/Environment/BeijingPM25Quality \
+  --data_path 0.npy \
+  --model_id BeijingPM25Quality_mask_0.125_ncycles_8 \
+  --mask_rate 0.125 \
+  --model $model_name \
+  --data UTSD \
+  --features M \
+  --seq_len 192 \
+  --label_len 0 \
+  --pred_len 0 \
+  --e_layers 2 \
+  --d_layers 1 \
+  --factor 3 \
+  --enc_in 9 \
+  --dec_in 9 \
+  --c_out 9 \
+  --batch_size 16 \
+  --d_model 128 \
+  --d_ff 128 \
+  --des 'Exp' \
+  --itr 1 \
+  --top_k 5 \
+  --learning_rate 0.001 \
+  --main_cycle 24 
+
+python -u run.py \
+  --task_name imputation \
+  --is_training 1 \
+  --root_path ./dataset/UTSD-full-npy/Environment/BeijingPM25Quality \
+  --data_path 0.npy \
+  --model_id BeijingPM25Quality_mask_0.25_ncycles_8 \
+  --mask_rate 0.25 \
+  --model $model_name \
+  --data UTSD \
+  --features M \
+  --seq_len 192 \
+  --label_len 0 \
+  --pred_len 0 \
+  --e_layers 2 \
+  --d_layers 1 \
+  --factor 3 \
+  --enc_in 9 \
+  --dec_in 9 \
+  --c_out 9 \
+  --batch_size 16 \
+  --d_model 128 \
+  --d_ff 128 \
+  --des 'Exp' \
+  --itr 1 \
+  --top_k 5 \
+  --learning_rate 0.001 \
+  --main_cycle 24 
+
+python -u run.py \
+  --task_name imputation \
+  --is_training 1 \
+  --root_path ./dataset/UTSD-full-npy/Environment/BeijingPM25Quality \
+  --data_path 0.npy \
+  --model_id BeijingPM25Quality_mask_0.375_ncycles_8 \
+  --mask_rate 0.375 \
+  --model $model_name \
+  --data UTSD \
+  --features M \
+  --seq_len 192 \
+  --label_len 0 \
+  --pred_len 0 \
+  --e_layers 2 \
+  --d_layers 1 \
+  --factor 3 \
+  --enc_in 9 \
+  --dec_in 9 \
+  --c_out 9 \
+  --batch_size 16 \
+  --d_model 128 \
+  --d_ff 128 \
+  --des 'Exp' \
+  --itr 1 \
+  --top_k 5 \
+  --learning_rate 0.001 \
+  --main_cycle 24 
+
+python -u run.py \
+  --task_name imputation \
+  --is_training 1 \
+  --root_path ./dataset/UTSD-full-npy/Environment/BeijingPM25Quality \
+  --data_path 0.npy \
+  --model_id BeijingPM25Quality_mask_0.5_ncycles_8 \
+  --mask_rate 0.5 \
+  --model $model_name \
+  --data UTSD \
+  --features M \
+  --seq_len 192 \
+  --label_len 0 \
+  --pred_len 0 \
+  --e_layers 2 \
+  --d_layers 1 \
+  --factor 3 \
+  --enc_in 9 \
+  --dec_in 9 \
+  --c_out 9 \
+  --batch_size 16 \
+  --d_model 128 \
+  --d_ff 128 \
+  --des 'Exp' \
+  --itr 1 \
+  --top_k 5 \
+  --learning_rate 0.001 \
+  --main_cycle 24 
