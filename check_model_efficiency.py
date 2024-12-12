@@ -10,14 +10,11 @@ from utils.print_args import print_args
 import random
 import numpy as np
 from time import time
+from tqdm import tqdm
 
 
-if __name__ == '__main__':
-    fix_seed = 2021
-    random.seed(fix_seed)
-    torch.manual_seed(fix_seed)
-    np.random.seed(fix_seed)
-
+def parse_args():
+    
     parser = argparse.ArgumentParser(description='TimesNet')
 
     # basic config
@@ -25,32 +22,26 @@ if __name__ == '__main__':
                         help='task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]')
     parser.add_argument('--is_training', type=int, required=True, default=1, help='status')
     parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
-    parser.add_argument('--models', type=list, required=True, default=['iTransformer, '],
+    parser.add_argument('--model', type=str, default=None,
+                        help='model name, overwritten')
+    parser.add_argument('--models', type=list, required=True, default=['iTransformer', 'PatchTST'],
                         help='model name, options: [Autoformer, Transformer, TimesNet]')
 
     # data loader
-    parser.add_argument('--data', type=str, required=True, default='ETTm1', help='dataset type')
-    parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
     parser.add_argument('--features', type=str, default='M',
                         help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
     parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
     parser.add_argument('--freq', type=str, default='h',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-    parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
 
     # forecasting task
-    parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
+    parser.add_argument('--seq_lens', type=list, default=[24, 48], help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=None, help='input sequence length (overwritten)')
     parser.add_argument('--label_len', type=int, default=48, help='start token length')
     parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
     parser.add_argument('--seasonal_patterns', type=str, default='Monthly', help='subset for M4')
     parser.add_argument('--inverse', action='store_true', help='inverse output data', default=False)
 
-    # inputation task
-    parser.add_argument('--mask_rate', type=float, default=0.25, help='mask ratio')
-
-    # anomaly detection task
-    parser.add_argument('--anomaly_ratio', type=float, default=0.25, help='prior anomaly ratio (%)')
 
     # model define
     parser.add_argument('--expand', type=int, default=2, help='expansion factor for Mamba')
@@ -87,8 +78,6 @@ if __name__ == '__main__':
                         help='the length of segmen-wise iteration of SegRNN')
 
     # optimization
-    parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
-    parser.add_argument('--itr', type=int, default=1, help='experiments times')
     parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
@@ -146,20 +135,21 @@ if __name__ == '__main__':
     parser.add_argument('--split', type=float, default=0.9, help='training set ratio')
 
     args = parser.parse_args()
-    # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
-    args.use_gpu = True if torch.cuda.is_available() else False
+    
+    return args
 
-    print(torch.cuda.is_available())
 
+def run_experiment(args):
+    
+    print('Script supporting multivariate to multivariate prediction')
+    args.features = 'M'
+    
     if args.use_gpu and args.use_multi_gpu:
         args.devices = args.devices.replace(' ', '')
         device_ids = args.devices.split(',')
         args.device_ids = [int(id_) for id_ in device_ids]
         args.gpu = args.device_ids[0]
-
-    print('Args in experiment:')
-    print_args(args)
-
+        
     if args.task_name == 'long_term_forecast':
         Exp = Exp_Long_Term_Forecast
     elif args.task_name == 'short_term_forecast':
@@ -172,113 +162,99 @@ if __name__ == '__main__':
         Exp = Exp_Classification
     else:
         Exp = Exp_Long_Term_Forecast
-
-    if args.is_training:
-        for ii in range(args.itr):
-            # setting record of experiments
-            exp = Exp(args)  # set experiments
-            setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_expand{}_dc{}_fc{}_eb{}_dt{}_{}_{}'.format(
-                args.task_name,
-                args.model_id,
-                args.model,
-                args.data,
-                args.features,
-                args.seq_len,
-                args.label_len,
-                args.pred_len,
-                args.d_model,
-                args.n_heads,
-                args.e_layers,
-                args.d_layers,
-                args.d_ff,
-                args.expand,
-                args.d_conv,
-                args.factor,
-                args.embed,
-                args.distil,
-                args.des, ii)
-
-            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-            exp.train(setting)
-
-            print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-            exp.test(setting)
-            torch.cuda.empty_cache()
-    else:
-        ii = 0
-        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_expand{}_dc{}_fc{}_eb{}_dt{}_{}_{}'.format(
-            args.task_name,
-            args.model_id,
-            args.model,
-            args.data,
-            args.features,
-            args.seq_len,
-            args.label_len,
-            args.pred_len,
-            args.d_model,
-            args.n_heads,
-            args.e_layers,
-            args.d_layers,
-            args.d_ff,
-            args.expand,
-            args.d_conv,
-            args.factor,
-            args.embed,
-            args.distil,
-            args.des, ii)
-
-        exp = Exp(args)  # set experiments
-        print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-        exp.test(setting, test=1)
-        torch.cuda.empty_cache()
-
-
-    # TODO
-    
-    from calflops import calculate_flops
-    from torchvision import models
-
-    model = models.alexnet()
-    batch_size = 1
-    input_shape = (batch_size, 3, 224, 224)
-    flops, macs, params = calculate_flops(model=model, 
-                                          input_shape=input_shape,
-                                          include_backPropagation=True,
-                                          output_as_string=False,
-                                          output_precision=4)
-    print("Alexnet FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-    ######
     
     exp = Exp(args)
+    iters = args.train_epochs
     
-    iters = 100
-    features = 10
-    model = exp._build_model()
-    optimizer = exp._select_optimizer()
-    criterion = exp._select_criterion()
+    model = exp._build_model().cuda()
+
+    if args.is_training:
+        optimizer = exp._select_optimizer()
+        criterion = exp._select_criterion()
+    else:
+        model.eval()
+
     
-    input_data = torch.randn(args.batch_size, args.seq_len, features).cuda()
-    target = torch.randn(args.batch_size, args.pred_len, features).cuda()
+    input_data = torch.randn(args.batch_size, args.seq_len, args.c_out).cuda()
+    temp_data = torch.randn(args.batch_size, args.seq_len, 3).cuda()
     
+    target = torch.randn(args.batch_size, args.pred_len, args.c_out).cuda()
     num_proc_seq = args.batch_size * iters
 
     start = time()
-    for it in range(iters):
-
+    for it in tqdm(range(iters)):
+        
         torch.cuda.reset_peak_memory_stats()
-
-        optimizer.zero_grad()
-        output = model(input_data)
-
-        loss = criterion(output, target)
-        loss.backward()
-
-        optimizer.step()
+        
+        if args.is_training:
+            output = model(input_data, temp_data, None, None)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+        else:
+            with torch.no_grad():
+                output = model(input_data, temp_data, None, None)
             
         peak_memory = torch.cuda.max_memory_allocated()
+        peak_memory *= 1e-6  # map to MB
         
     end = time()
 
-    seq_per_second = num_proc_seq / (end - start)     
+    seq_per_second = num_proc_seq / (end - start)
+    
+    return {"seq_per_second": seq_per_second, "peak_memory": peak_memory}  
+
+if __name__ == '__main__':
+    fix_seed = 2021
+    random.seed(fix_seed)
+    torch.manual_seed(fix_seed)
+    np.random.seed(fix_seed)
+
+    args = parse_args()
+    
+    # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
+    args.use_gpu = True if torch.cuda.is_available() else False
+
+    print(torch.cuda.is_available())
+
+    if args.use_gpu and args.use_multi_gpu:
+        args.devices = args.devices.replace(' ', '')
+        device_ids = args.devices.split(',')
+        args.device_ids = [int(id_) for id_ in device_ids]
+        args.gpu = args.device_ids[0]
+
+
+    models = args.models
+    seq_lens = args.seq_lens
+    out = np.zeros((len(seq_lens, models)))
+    
+    
+    for sl in seq_lens:
+        for m in models:
+            
+            args.seq_len = sl
+            args.model = m
+            
+            out = run_experiment(args)
+            
+        
+        
+#     # TODO
+    
+#     from calflops import calculate_flops
+#     from torchvision import models
+
+#     model = models.alexnet()
+#     batch_size = 1
+#     input_shape = (batch_size, 3, 224, 224)
+#     flops, macs, params = calculate_flops(model=model, 
+#                                           input_shape=input_shape,
+#                                           include_backPropagation=True,
+#                                           output_as_string=False,
+#                                           output_precision=4)
+#     print("Alexnet FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
+#     ######
+    
+
 
 
