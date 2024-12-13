@@ -18,6 +18,7 @@ class Model(iTimesformerModel):
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
+        self.d_model = configs.d_model
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(self.main_cycle, configs.d_model, configs.embed, configs.freq,
                                                     configs.dropout)

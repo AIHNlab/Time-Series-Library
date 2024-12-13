@@ -11,6 +11,8 @@ import random
 import numpy as np
 from time import time
 from tqdm import tqdm
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 def parse_args():
@@ -24,8 +26,8 @@ def parse_args():
     parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
     parser.add_argument('--model', type=str, default=None,
                         help='model name, overwritten')
-    parser.add_argument('--models', type=list, required=True, default=['iTransformer', 'PatchTST'],
-                        help='model name, options: [Autoformer, Transformer, TimesNet]')
+    parser.add_argument('--models', type=str, nargs='+', default=['PatchTST', 'iTransformer'],
+                       help='List of models to try')
 
     # data loader
     parser.add_argument('--features', type=str, default='M',
@@ -35,7 +37,7 @@ def parse_args():
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
 
     # forecasting task
-    parser.add_argument('--seq_lens', type=list, default=[24, 48], help='input sequence length')
+    parser.add_argument('--seq_lens', type=int, nargs='+', default=[24, 48], help='List of sequence lengths')
     parser.add_argument('--seq_len', type=int, default=None, help='input sequence length (overwritten)')
     parser.add_argument('--label_len', type=int, default=48, help='start token length')
     parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
@@ -141,14 +143,8 @@ def parse_args():
 
 def run_experiment(args):
     
-    print('Script supporting multivariate to multivariate prediction')
+    print(f'Sequence length {args.seq_len} - Model: {args.model}')
     args.features = 'M'
-    
-    if args.use_gpu and args.use_multi_gpu:
-        args.devices = args.devices.replace(' ', '')
-        device_ids = args.devices.split(',')
-        args.device_ids = [int(id_) for id_ in device_ids]
-        args.gpu = args.device_ids[0]
         
     if args.task_name == 'long_term_forecast':
         Exp = Exp_Long_Term_Forecast
@@ -174,11 +170,10 @@ def run_experiment(args):
     else:
         model.eval()
 
-    
     input_data = torch.randn(args.batch_size, args.seq_len, args.c_out).cuda()
     temp_data = torch.randn(args.batch_size, args.seq_len, 3).cuda()
-    
     target = torch.randn(args.batch_size, args.pred_len, args.c_out).cuda()
+
     num_proc_seq = args.batch_size * iters
 
     start = time()
@@ -187,13 +182,13 @@ def run_experiment(args):
         torch.cuda.reset_peak_memory_stats()
         
         if args.is_training:
-            output = model(input_data, temp_data, None, None)
+            output = model(input_data, None, None, None)
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
         else:
             with torch.no_grad():
-                output = model(input_data, temp_data, None, None)
+                output = model(input_data, None, None, None)
             
         peak_memory = torch.cuda.max_memory_allocated()
         peak_memory *= 1e-6  # map to MB
@@ -203,7 +198,8 @@ def run_experiment(args):
     seq_per_second = num_proc_seq / (end - start)
     
     return {"seq_per_second": seq_per_second, "peak_memory": peak_memory}  
-
+    
+    
 if __name__ == '__main__':
     fix_seed = 2021
     random.seed(fix_seed)
@@ -212,10 +208,14 @@ if __name__ == '__main__':
 
     args = parse_args()
     
+    if args.use_gpu and args.use_multi_gpu:
+        args.devices = args.devices.replace(' ', '')
+        device_ids = args.devices.split(',')
+        args.device_ids = [int(id_) for id_ in device_ids]
+        args.gpu = args.device_ids[0]
+        
     # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
     args.use_gpu = True if torch.cuda.is_available() else False
-
-    print(torch.cuda.is_available())
 
     if args.use_gpu and args.use_multi_gpu:
         args.devices = args.devices.replace(' ', '')
@@ -223,22 +223,46 @@ if __name__ == '__main__':
         args.device_ids = [int(id_) for id_ in device_ids]
         args.gpu = args.device_ids[0]
 
-
+        
+    # Assuming args is a predefined argument object
     models = args.models
     seq_lens = args.seq_lens
-    out = np.zeros((len(seq_lens, models)))
+    KEYS = ['seq_per_second', 'peak_memory']
+    KEYS_PLOT = ['Training Speed (seq/s)', 'Peak Memory Usage (MiB)']
+    if args.is_training == 0:
+        KEYS_PLOT[0] = 'Inference Speed (seq/s)'
     
+    # Initialize a dictionary to store results for each metric across models and sequence lengths
+    results = {key: np.zeros((len(seq_lens), len(models))) for key in KEYS}
     
-    for sl in seq_lens:
-        for m in models:
-            
+    # Loop through sequence lengths and models
+    for i, sl in enumerate(seq_lens):
+        for j, m in enumerate(models):
             args.seq_len = sl
             args.model = m
-            
-            out = run_experiment(args)
-            
-        
-        
+    
+            # Run the experiment and get the result dictionary
+            experiment_out = run_experiment(args)
+    
+            # Store the results in the respective arrays
+            for key in experiment_out:
+                results[key][i, j] = experiment_out[key]
+    
+    # Plotting results
+    for ik, (key, data) in enumerate(results.items()):
+        plt.figure(figsize=(8, 6))
+        for j, m in enumerate(models):
+            plt.plot(seq_lens, data[:, j], label=f"{m}", marker='o')
+    
+        plt.title(f"{args.c_out} Variables")
+        plt.xlabel("Sequence Length (L)")
+        plt.xticks(seq_lens, labels=[str(sl) for sl in seq_lens])
+        plt.ylabel(KEYS_PLOT[ik])
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"{key}_vs_seq_len.png")  # Save the plot as an image
+        plt.show()
+    
 #     # TODO
     
 #     from calflops import calculate_flops
