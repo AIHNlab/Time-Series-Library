@@ -17,6 +17,7 @@ class Model(nn.Module):
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
+        self.d_model = configs.d_model
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(self.main_cycle, configs.d_model, configs.embed, configs.freq,
                                                     configs.dropout)
@@ -39,7 +40,7 @@ class Model(nn.Module):
         )
         # Decoder
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
-            self.projection = nn.Linear(configs.d_model, configs.pred_len, bias=True)
+            self.projection = nn.Linear(configs.d_model*self.n_cycles, configs.pred_len, bias=True)
         if self.task_name == 'imputation':
             self.projection = nn.Linear(configs.d_model, configs.seq_len//self.n_cycles, bias=True) # divide by n_cycles to match the shaping strategy by main_cycle
         if self.task_name == 'anomaly_detection':
@@ -66,13 +67,14 @@ class Model(nn.Module):
         
         # Reshape by periodicity
         x_enc = self.periodicity_reshape(x_enc, self.n_features, 'apply')
-        x_mark_enc = self.periodicity_reshape(x_mark_enc, x_mark_enc.shape[-1], 'apply')
+        #x_mark_enc = self.periodicity_reshape(x_mark_enc, x_mark_enc.shape[-1], 'apply')
 
         # Embedding
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out = self._apply_positional_encoding(enc_out)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
-
+        enc_out = enc_out.reshape(enc_out.shape[0], self.n_features, self.n_cycles, self.d_model).reshape(enc_out.shape[0], self.n_features, self.d_model*self.n_cycles)
+        
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :self.n_features]
         
         #* No need to restore the original shape for forecast because it 
@@ -98,7 +100,7 @@ class Model(nn.Module):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         enc_out = self._apply_positional_encoding(enc_out)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
- 
+        
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :self.n_features*self.n_cycles] # multiply by n_cycles to match the shaping strategy by main_cycle
         
         # Restore the original shape
@@ -153,7 +155,7 @@ class Model(nn.Module):
         return output
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
-        x_mark_enc = None
+
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len:, :]  # [B, L, D]
