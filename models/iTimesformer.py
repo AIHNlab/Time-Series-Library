@@ -110,9 +110,11 @@ class Model(nn.Module):
         enc_out = self._apply_positional_encoding(enc_out)
         plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, 0, 'postional_encoding')
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
+
         plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, 0, 'enc_out_cyclic')
         #plot_attention(attns[0], self.itr_count, self.n_cycles, 0)
         enc_out = enc_out.reshape(enc_out.shape[0], self.n_features+self.x_mark_size, self.n_cycles, self.d_model).reshape(enc_out.shape[0], self.n_features+self.x_mark_size, self.d_model*self.n_cycles)
+
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :self.n_features]
         
         #* No need to restore the original shape for forecast because it 
@@ -183,14 +185,12 @@ class Model(nn.Module):
         
         # Reshape by periodicity
         x_enc = self.periodicity_reshape(x_enc, self.n_features, 'apply')
-        #x_mark_enc = self.periodicity_reshape(x_mark_enc, x_mark_enc.shape[-1], 'apply')
         plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, 0, 'x_enc_cyclic')
         # Embedding
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         #enc_out = self._apply_positional_encoding(enc_out)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
-        #plot_attention(attns[0], self.itr_count, self.n_cycles, 0)
- 
+
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :self.n_features*self.n_cycles] # multiply by n_cycles to match the shaping strategy by main_cycle
         plot_heatmap(dec_out, self.itr_count, self.n_cycles, debug_frequency, 0, 'dec_out_cyclic')
         # Restore the original shape
@@ -245,17 +245,8 @@ class Model(nn.Module):
         output = self.projection(output)  # (batch_size, num_classes)
         return output
 
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None, target=None):
-        self.itr_count += 1
-        if target != None:
-            means = target.mean(1, keepdim=True).detach()
-            target = target - means
-            stdev = torch.sqrt(torch.var(target, dim=1, keepdim=True, unbiased=False) + 1e-5)
-            target /= stdev
-            plot_heatmap(target, self.itr_count, self.n_cycles, debug_frequency, 0, 'target')
-            target_cyclic = self.periodicity_reshape(target, self.n_features, 'apply')
-            plot_heatmap(target_cyclic, self.itr_count, self.n_cycles, debug_frequency, 0, 'target_cyclic')
-            
+
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             #print("Model Trend:", self.model_trend)
             if self.model_trend:

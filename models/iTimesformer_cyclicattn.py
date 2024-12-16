@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers.Transformer_EncDec import Encoder, CyclicEncoderLayer
+from layers.Transformer_EncDec import Encoder, CyclicEncoderLayer, iPatchEncoderLayer
 from layers.SelfAttention_Family import FullAttention, AttentionLayer
 from layers.Embed import DataEmbedding_inverted
 from layers.iTimesformer_Periodicity import PeriodicityReshape, PositionalEncoding
@@ -19,6 +19,14 @@ class Model(iTimesformerModel):
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.x_mark_size = configs.x_mark_size
+        self.d_model = configs.d_model
+        self.layer = configs.layer
+        if self.layer == 'cyclic':
+            enc = CyclicEncoderLayer
+        elif self.layer == 'ipatch':
+            enc = iPatchEncoderLayer
+        else:
+            raise(f'Unexpected layer type {self.layer}')
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(self.main_cycle, configs.d_model, configs.embed, configs.freq,
                                                     configs.dropout)
@@ -27,15 +35,15 @@ class Model(iTimesformerModel):
         # Encoder
         self.encoder = Encoder(
             [
-                CyclicEncoderLayer(
+                enc(
                     AttentionLayer(
                         FullAttention(False, configs.factor, attention_dropout=configs.dropout,
                                       output_attention=False), configs.d_model, configs.n_heads),
                     AttentionLayer(
                         FullAttention(False, configs.factor, attention_dropout=configs.dropout,
-                                      output_attention=False), configs.d_temp, configs.n_heads),
+                                      output_attention=False), configs.d_temp if self.layer == 'cyclic' else configs.d_model, configs.n_heads),
                     configs.d_model,
-                    configs.d_temp,
+                    configs.d_temp, # Note: d_temp has no effect on iPatchEncoder layer - can be removed in future versions
                     self.n_cycles,
                     configs.c_out+configs.x_mark_size,
                     configs.d_ff,

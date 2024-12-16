@@ -33,20 +33,19 @@ class Model(nn.Module):
     Paper link: https://arxiv.org/pdf/2211.14730.pdf
     """
 
-    def __init__(self, configs, patch_len=16, stride=8):
-        """
-        patch_len: int, patch len for patch_embedding
-        stride: int, stride for patch_embedding
-        """
+    def __init__(self, configs):
+
         super().__init__()
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
-        padding = stride
+        self.patch_len = configs.patch_len
+        self.pstride = configs.pstride
+        padding = self.pstride
 
         # patching and embedding
         self.patch_embedding = PatchEmbedding(
-            configs.d_model, patch_len, stride, padding, configs.dropout)
+            configs.d_model, self.patch_len, self.pstride, padding, configs.dropout)
 
         # Encoder
         self.encoder = Encoder(
@@ -66,7 +65,7 @@ class Model(nn.Module):
 
         # Prediction Head
         self.head_nf = configs.d_model * \
-                       int((configs.seq_len - patch_len) / stride + 2)
+                       int((configs.seq_len - self.patch_len) / self.pstride + 2)
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.head = FlattenHead(configs.enc_in, self.head_nf, configs.pred_len,
                                     head_dropout=configs.dropout)
