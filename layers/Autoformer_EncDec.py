@@ -19,20 +19,25 @@ class my_Layernorm(nn.Module):
 
 
 class moving_avg(nn.Module):
-    """
-    Moving average block to highlight the trend of time series
-    """
-
     def __init__(self, kernel_size, stride):
         super(moving_avg, self).__init__()
         self.kernel_size = kernel_size
         self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
 
     def forward(self, x):
-        # padding on the both ends of time series
-        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
-        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        # Calculate padding to maintain sequence length
+        padding_size = (self.kernel_size - 1) // 2
+        if self.kernel_size % 2 == 0:
+            padding_right = padding_size + 1  # Extra padding on right for even kernels
+        else:
+            padding_right = padding_size
+
+        # Pad both ends
+        front = x[:, 0:1, :].repeat(1, padding_size, 1)
+        end = x[:, -1:, :].repeat(1, padding_right, 1)
         x = torch.cat([front, x, end], dim=1)
+        
+        # Apply moving average
         x = self.avg(x.permute(0, 2, 1))
         x = x.permute(0, 2, 1)
         return x

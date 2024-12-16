@@ -18,6 +18,7 @@ class Model(iTimesformerModel):
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
+        self.x_mark_size = configs.x_mark_size
         self.d_model = configs.d_model
         self.layer = configs.layer
         if self.layer == 'cyclic':
@@ -44,7 +45,7 @@ class Model(iTimesformerModel):
                     configs.d_model,
                     configs.d_temp, # Note: d_temp has no effect on iPatchEncoder layer - can be removed in future versions
                     self.n_cycles,
-                    configs.c_out,
+                    configs.c_out+configs.x_mark_size,
                     configs.d_ff,
                     dropout=configs.dropout,
                     activation=configs.activation,
