@@ -41,7 +41,7 @@ class Model(nn.Module):
                                                     configs.dropout)
         self.positional_encoding = PositionalEncoding(configs.d_model)
         self.periodicity_reshape = PeriodicityReshape(self.main_cycle)
-        self.itr_count = 0
+        self.itr_count = 1
         self.trend_projection = nn.Sequential(
             nn.Linear(self.seq_len, self.d_model),  # First layer projects to model dimension
             nn.LayerNorm(self.d_model),
@@ -96,22 +96,22 @@ class Model(nn.Module):
             x_enc = x_enc - means
             stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
             x_enc /= stdev
-        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, 0, 'x_enc')
+        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'x_enc')
         # Reshape by periodicity
         x_enc = self.periodicity_reshape(x_enc, self.n_features, 'apply')
 
-        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, 0, 'x_enc_cyclic')
+        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'x_enc_cyclic')
         #plot_heatmap(x_mark_enc, self.itr_count, self.n_cycles, 0, 'x_mark_encc_cyclic')
         #plot_input(x_mark_enc, self.itr_count, self.n_cycles, 0)
         # Embedding
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
-        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, 0, 'embedding')
+        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'embedding')
         #enc_out = torch.ones(enc_out.shape).to(enc_out.device)
         enc_out = self._apply_positional_encoding(enc_out)
-        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, 0, 'postional_encoding')
+        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'postional_encoding')
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
-        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, 0, 'enc_out_cyclic')
+        plot_heatmap(enc_out.permute(0,2,1), self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'enc_out_cyclic')
         #plot_attention(attns[0], self.itr_count, self.n_cycles, 0)
         enc_out = enc_out.reshape(enc_out.shape[0], self.n_features+self.x_mark_size, self.n_cycles, self.d_model).reshape(enc_out.shape[0], self.n_features+self.x_mark_size, self.d_model*self.n_cycles)
 
@@ -174,7 +174,7 @@ class Model(nn.Module):
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
-        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, 0, 'x_enc')
+        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'x_enc')
         x_mark_enc = None
         
         # Normalization from Non-stationary Transformer
@@ -185,19 +185,19 @@ class Model(nn.Module):
         
         # Reshape by periodicity
         x_enc = self.periodicity_reshape(x_enc, self.n_features, 'apply')
-        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, 0, 'x_enc_cyclic')
+        plot_heatmap(x_enc, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'x_enc_cyclic')
         # Embedding
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         #enc_out = self._apply_positional_encoding(enc_out)
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :self.n_features*self.n_cycles] # multiply by n_cycles to match the shaping strategy by main_cycle
-        plot_heatmap(dec_out, self.itr_count, self.n_cycles, debug_frequency, 0, 'dec_out_cyclic')
+        plot_heatmap(dec_out, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'dec_out_cyclic')
         # Restore the original shape
         dec_out = self.periodicity_reshape(dec_out, self.n_features, 'revert')
         
         # De-Normalization from Non-stationary Transformer
-        plot_heatmap(dec_out, self.itr_count, self.n_cycles, debug_frequency, 0, 'dec_out')
+        plot_heatmap(dec_out, self.itr_count, self.n_cycles, debug_frequency, debug_folder, 0, 'dec_out')
         dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.seq_len, 1))
         dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.seq_len, 1))
         return dec_out

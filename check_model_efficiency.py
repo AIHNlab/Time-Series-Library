@@ -58,13 +58,13 @@ def run_experiment(args):
         torch.cuda.reset_peak_memory_stats()
         
         if args.is_training:
-            output = model(input_data, None, None, None)
+            output = model(input_data, temp_data, None, None)
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
         else:
             with torch.no_grad():
-                output = model(input_data, None, None, None)
+                output = model(input_data, temp_data, None, None)
             
         peak_memory = torch.cuda.max_memory_allocated()
         peak_memory *= 1e-6  # map to MB

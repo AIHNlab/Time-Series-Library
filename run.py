@@ -26,7 +26,7 @@ def parse_args():
                        help='List of models to try')
 
     # data loader
-    parser.add_argument('--data', type=str, required=True, default='ETTm1', help='dataset type')
+    parser.add_argument('--data', type=str, required=False, default='ETTm1', help='dataset type')
     parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
     parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
     parser.add_argument('--features', type=str, default='M',
@@ -149,7 +149,7 @@ def parse_args():
     # UTSD dataset
     parser.add_argument('--stride', type=int, default=1, help='stride of the sliding window (just for UTSD dataset)')
     parser.add_argument('--split', type=float, default=0.9, help='training set ratio')
-
+    parser.add_argument('--results_file', type=str, help='alternative file to write final results to')    
 
     args = parser.parse_args()
     

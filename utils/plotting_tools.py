@@ -64,7 +64,7 @@ def merge_images_by_prefix(image_dir, output_dir, debug_frequency, itr=0, max_im
 
 
 
-def plot_heatmap(x_enc, itr , n_cycles, debug_frequency, batch_sample_index = -1, plot_name = 'x_enc'):
+def plot_heatmap(x_enc, itr , n_cycles, debug_frequency, debug_folder, batch_sample_index = -1, plot_name = 'x_enc'):
     """
     Plots x_enc as a heatmap for given index in batch.
 
