@@ -137,11 +137,14 @@ if __name__ == '__main__':
     # iTimesformer
     parser.add_argument('--main_cycle', type=int, default=24, help='main cycle')
     parser.add_argument('--d_temp', type=int, default=1024, help='bottleneck for dimensionality of time attention')
-    parser.add_argument('--full_mlp', type=bool, default=False, help='whether to use MLP layers in iTransformer style')
+    #parser.add_argument('--full_mlp', type=bool, default=False, help='whether to use MLP layers in iTransformer style')
 
     # UTSD dataset
     parser.add_argument('--stride', type=int, default=1, help='stride of the sliding window (just for UTSD dataset)')
     parser.add_argument('--split', type=float, default=0.9, help='training set ratio')
+    parser.add_argument('--full_mlp', action='store_true', help='Use MLP layers in iTransformer style')
+    parser.add_argument('--model_trend', action='store_true', help='Model trend with a linear layer')
+    parser.add_argument('--x_mark_size', type=int, default=0, help='size of external features')
 
     args = parser.parse_args()
     # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
