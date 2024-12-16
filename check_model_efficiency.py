@@ -14,136 +14,12 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def parse_args():
-    
-    parser = argparse.ArgumentParser(description='TimesNet')
-
-    # basic config
-    parser.add_argument('--task_name', type=str, required=True, default='long_term_forecast',
-                        help='task name, options:[long_term_forecast, short_term_forecast, imputation, classification, anomaly_detection]')
-    parser.add_argument('--is_training', type=int, required=True, default=1, help='status')
-    parser.add_argument('--model_id', type=str, required=True, default='test', help='model id')
-    parser.add_argument('--model', type=str, default=None,
-                        help='model name, overwritten')
-    parser.add_argument('--models', type=str, nargs='+', default=['PatchTST', 'iTransformer'],
-                       help='List of models to try')
-
-    # data loader
-    parser.add_argument('--features', type=str, default='M',
-                        help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
-    parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
-    parser.add_argument('--freq', type=str, default='h',
-                        help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
-
-    # forecasting task
-    parser.add_argument('--seq_lens', type=int, nargs='+', default=[24, 48], help='List of sequence lengths')
-    parser.add_argument('--seq_len', type=int, default=None, help='input sequence length (overwritten)')
-    parser.add_argument('--label_len', type=int, default=48, help='start token length')
-    parser.add_argument('--pred_len', type=int, default=96, help='prediction sequence length')
-    parser.add_argument('--seasonal_patterns', type=str, default='Monthly', help='subset for M4')
-    parser.add_argument('--inverse', action='store_true', help='inverse output data', default=False)
-
-
-    # model define
-    parser.add_argument('--expand', type=int, default=2, help='expansion factor for Mamba')
-    parser.add_argument('--d_conv', type=int, default=4, help='conv kernel size for Mamba')
-    parser.add_argument('--top_k', type=int, default=5, help='for TimesBlock')
-    parser.add_argument('--num_kernels', type=int, default=6, help='for Inception')
-    parser.add_argument('--enc_in', type=int, default=7, help='encoder input size')
-    parser.add_argument('--dec_in', type=int, default=7, help='decoder input size')
-    parser.add_argument('--c_out', type=int, default=7, help='output size')
-    parser.add_argument('--d_model', type=int, default=512, help='dimension of model')
-    parser.add_argument('--n_heads', type=int, default=8, help='num of heads')
-    parser.add_argument('--e_layers', type=int, default=2, help='num of encoder layers')
-    parser.add_argument('--d_layers', type=int, default=1, help='num of decoder layers')
-    parser.add_argument('--d_ff', type=int, default=2048, help='dimension of fcn')
-    parser.add_argument('--moving_avg', type=int, default=25, help='window size of moving average')
-    parser.add_argument('--factor', type=int, default=1, help='attn factor')
-    parser.add_argument('--distil', action='store_false',
-                        help='whether to use distilling in encoder, using this argument means not using distilling',
-                        default=True)
-    parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
-    parser.add_argument('--embed', type=str, default='timeF',
-                        help='time features encoding, options:[timeF, fixed, learned]')
-    parser.add_argument('--activation', type=str, default='gelu', help='activation')
-    parser.add_argument('--channel_independence', type=int, default=1,
-                        help='0: channel dependence 1: channel independence for FreTS model')
-    parser.add_argument('--decomp_method', type=str, default='moving_avg',
-                        help='method of series decompsition, only support moving_avg or dft_decomp')
-    parser.add_argument('--use_norm', type=int, default=1, help='whether to use normalize; True 1 False 0')
-    parser.add_argument('--down_sampling_layers', type=int, default=0, help='num of down sampling layers')
-    parser.add_argument('--down_sampling_window', type=int, default=1, help='down sampling window size')
-    parser.add_argument('--down_sampling_method', type=str, default=None,
-                        help='down sampling method, only support avg, max, conv')
-    parser.add_argument('--seg_len', type=int, default=48,
-                        help='the length of segmen-wise iteration of SegRNN')
-
-    # optimization
-    parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
-    parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
-    parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
-    parser.add_argument('--des', type=str, default='test', help='exp description')
-    parser.add_argument('--loss', type=str, default='MSE', help='loss function')
-    parser.add_argument('--lradj', type=str, default='type1', help='adjust learning rate')
-    parser.add_argument('--use_amp', action='store_true', help='use automatic mixed precision training', default=False)
-
-    # GPU
-    parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
-    parser.add_argument('--gpu', type=int, default=0, help='gpu')
-    parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple gpus', default=False)
-    parser.add_argument('--devices', type=str, default='0,1,2,3', help='device ids of multile gpus')
-
-    # de-stationary projector params
-    parser.add_argument('--p_hidden_dims', type=int, nargs='+', default=[128, 128],
-                        help='hidden layer dimensions of projector (List)')
-    parser.add_argument('--p_hidden_layers', type=int, default=2, help='number of hidden layers in projector')
-
-    # metrics (dtw)
-    parser.add_argument('--use_dtw', type=bool, default=False, 
-                        help='the controller of using dtw metric (dtw is time consuming, not suggested unless necessary)')
-    
-    # Augmentation
-    parser.add_argument('--augmentation_ratio', type=int, default=0, help="How many times to augment")
-    parser.add_argument('--seed', type=int, default=2, help="Randomization seed")
-    parser.add_argument('--jitter', default=False, action="store_true", help="Jitter preset augmentation")
-    parser.add_argument('--scaling', default=False, action="store_true", help="Scaling preset augmentation")
-    parser.add_argument('--permutation', default=False, action="store_true", help="Equal Length Permutation preset augmentation")
-    parser.add_argument('--randompermutation', default=False, action="store_true", help="Random Length Permutation preset augmentation")
-    parser.add_argument('--magwarp', default=False, action="store_true", help="Magnitude warp preset augmentation")
-    parser.add_argument('--timewarp', default=False, action="store_true", help="Time warp preset augmentation")
-    parser.add_argument('--windowslice', default=False, action="store_true", help="Window slice preset augmentation")
-    parser.add_argument('--windowwarp', default=False, action="store_true", help="Window warp preset augmentation")
-    parser.add_argument('--rotation', default=False, action="store_true", help="Rotation preset augmentation")
-    parser.add_argument('--spawner', default=False, action="store_true", help="SPAWNER preset augmentation")
-    parser.add_argument('--dtwwarp', default=False, action="store_true", help="DTW warp preset augmentation")
-    parser.add_argument('--shapedtwwarp', default=False, action="store_true", help="Shape DTW warp preset augmentation")
-    parser.add_argument('--wdba', default=False, action="store_true", help="Weighted DBA preset augmentation")
-    parser.add_argument('--discdtw', default=False, action="store_true", help="Discrimitive DTW warp preset augmentation")
-    parser.add_argument('--discsdtw', default=False, action="store_true", help="Discrimitive shapeDTW warp preset augmentation")
-    parser.add_argument('--extra_tag', type=str, default="", help="Anything extra")
-
-    # TimeXer
-    parser.add_argument('--patch_len', type=int, default=16, help='patch length')
-
-    # iTimesformer
-    parser.add_argument('--main_cycle', type=int, default=24, help='main cycle')
-    parser.add_argument('--d_temp', type=int, default=32, help='bottleneck for dimensionality of time attention')
-    parser.add_argument('--full_mlp', type=bool, default=False, help='whether to use MLP layers in iTransformer style')
-
-    # UTSD dataset
-    parser.add_argument('--stride', type=int, default=1, help='stride of the sliding window (just for UTSD dataset)')
-    parser.add_argument('--split', type=float, default=0.9, help='training set ratio')
-
-    args = parser.parse_args()
-    
-    return args
+from run import parse_args
 
 
 def run_experiment(args):
     
-    print(f'Sequence length {args.seq_len} - Model: {args.model}')
+    print(f'Sequence length {args.seq_len} - Variables {args.c_out} - Model: {args.model}')
     args.features = 'M'
         
     if args.task_name == 'long_term_forecast':
@@ -227,18 +103,33 @@ if __name__ == '__main__':
     # Assuming args is a predefined argument object
     models = args.models
     seq_lens = args.seq_lens
+    c_outs = args.c_outs
+    
+    if (seq_lens is None) and (c_outs is None):
+        raise('Specify either seq_lens or c_outs')
+    elif not(seq_lens is None) and not(c_outs is None):
+        raise('Specify only one between seq_lens and c_outs')
+    elif not(seq_lens is None):
+        x = seq_lens
+    elif not(c_outs is None):
+        x = c_outs
+    
+        
     KEYS = ['seq_per_second', 'peak_memory']
     KEYS_PLOT = ['Training Speed (seq/s)', 'Peak Memory Usage (MiB)']
     if args.is_training == 0:
         KEYS_PLOT[0] = 'Inference Speed (seq/s)'
     
     # Initialize a dictionary to store results for each metric across models and sequence lengths
-    results = {key: np.zeros((len(seq_lens), len(models))) for key in KEYS}
+    results = {key: np.zeros((len(x), len(models))) for key in KEYS}
     
     # Loop through sequence lengths and models
-    for i, sl in enumerate(seq_lens):
+    for i, v in enumerate(x):
         for j, m in enumerate(models):
-            args.seq_len = sl
+            if x == seq_lens:
+                args.seq_len = v
+            if x == c_outs:
+                args.c_out = v
             args.model = m
     
             # Run the experiment and get the result dictionary
@@ -252,15 +143,23 @@ if __name__ == '__main__':
     for ik, (key, data) in enumerate(results.items()):
         plt.figure(figsize=(8, 6))
         for j, m in enumerate(models):
-            plt.plot(seq_lens, data[:, j], label=f"{m}", marker='o')
-    
-        plt.title(f"{args.c_out} Variables")
-        plt.xlabel("Sequence Length (L)")
-        plt.xticks(seq_lens, labels=[str(sl) for sl in seq_lens])
+            plt.plot(x, data[:, j], label=f"{m}", marker='o')
+        
+        if x == seq_lens:
+            plt.title(f"{args.c_out} Variables")
+            plt.xlabel("Sequence Length (L)")
+        if x == c_outs:
+            plt.title(f"{args.seq_len} Sequence Length")
+            plt.xlabel("Variables (C)")
+            
+        plt.xticks(x, labels=[str(v) for v in x])
         plt.ylabel(KEYS_PLOT[ik])
         plt.legend()
         plt.grid(True)
-        plt.savefig(f"{key}_vs_seq_len.png")  # Save the plot as an image
+        if x == seq_lens:
+            plt.savefig(f"{key}_vs_seq_len.png")
+        if x == c_outs:
+            plt.savefig(f"{key}_vs_c_out.png")
         plt.show()
     
 #     # TODO
