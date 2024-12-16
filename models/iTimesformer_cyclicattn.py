@@ -18,6 +18,7 @@ class Model(iTimesformerModel):
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
+        self.x_mark_size = configs.x_mark_size
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(self.main_cycle, configs.d_model, configs.embed, configs.freq,
                                                     configs.dropout)
@@ -36,7 +37,7 @@ class Model(iTimesformerModel):
                     configs.d_model,
                     configs.d_temp,
                     self.n_cycles,
-                    configs.c_out,
+                    configs.c_out+configs.x_mark_size,
                     configs.d_ff,
                     dropout=configs.dropout,
                     activation=configs.activation,
