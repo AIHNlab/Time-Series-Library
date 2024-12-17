@@ -64,6 +64,7 @@ class CyclicEncoderLayer(nn.Module):
             
             self.conv1 = nn.Conv1d(in_channels=d_model*self.N, out_channels=d_ff, kernel_size=1)
             self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model*self.N, kernel_size=1)
+            self.norm0 = nn.LayerNorm(d_model)
             self.norm1 = nn.LayerNorm(d_model)
             self.norm2 = nn.LayerNorm(d_model)
             
@@ -71,6 +72,7 @@ class CyclicEncoderLayer(nn.Module):
             
             self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
             self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
+            self.norm0 = nn.LayerNorm(d_model)
             self.norm1 = nn.LayerNorm(d_model)
             self.norm2 = nn.LayerNorm(d_model)
             
@@ -85,7 +87,7 @@ class CyclicEncoderLayer(nn.Module):
         B, NC, D = x.size()
         C = int(NC / self.N)
         
-        # Reshape for attending over num_cycles independent of variates
+        # Reshape for attending over num_variates 
         x_var = x.view(B, C, self.N, D).permute(0, 2, 1, 3).reshape(B * self.N, C, D)
         
         new_x, attn_var = self.attention_var(
@@ -94,8 +96,15 @@ class CyclicEncoderLayer(nn.Module):
             tau=tau, delta=delta
         )
         
+        # Reshape to original
+        new_x = new_x.permute(1, 0, 2).reshape(B, self.N*C, D)
+        
+        # Residual and norm
+        x = x + self.dropout(new_x)
+        new_x = x = self.norm0(x)
+        
         # Reshape for attending over num_cycles and move variates to the last dimension 
-        new_x = new_x.reshape(B, self.N, C*D)
+        new_x = new_x.reshape(B, C, self.N, D).permute(0, 2, 1, 3).reshape(B, self.N, C*D)
         new_x = self.dim_reduction(new_x.reshape(B, self.N, C*D))
         
         new_x, attn_cycle = self.attention_cycle(
@@ -143,6 +152,7 @@ class iPatchEncoderLayer(nn.Module):
             
             self.conv1 = nn.Conv1d(in_channels=d_model*self.N, out_channels=d_ff, kernel_size=1)
             self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model*self.N, kernel_size=1)
+            self.norm0 = nn.LayerNorm(d_model)
             self.norm1 = nn.LayerNorm(d_model)
             self.norm2 = nn.LayerNorm(d_model)
             
@@ -150,6 +160,7 @@ class iPatchEncoderLayer(nn.Module):
             
             self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
             self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
+            self.norm0 = nn.LayerNorm(d_model)
             self.norm1 = nn.LayerNorm(d_model)
             self.norm2 = nn.LayerNorm(d_model)
             
@@ -171,8 +182,15 @@ class iPatchEncoderLayer(nn.Module):
             tau=tau, delta=delta
         )
         
+        # Reshape to original
+        new_x = new_x.permute(1, 0, 2).reshape(B, self.N*C, D)
+        
+        # Residual and norm
+        x = x + self.dropout(new_x)
+        new_x = x = self.norm0(x)
+        
         # Reshape for attending over num_cycles 
-        new_x = new_x.reshape(B, self.N, C, D).permute(0, 2, 1, 3).reshape(B * C, self.N, D)
+        new_x = new_x.reshape(B*C, self.N, D)
         
         new_x, attn_cycle = self.attention_cycle(
             new_x, new_x, new_x,
