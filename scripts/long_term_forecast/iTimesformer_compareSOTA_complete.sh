@@ -17,11 +17,10 @@ echo "Using prediction length: $pred_len"
 echo "Using script: $script_name"
 
 model_names=(
+    "DLinear"
     "iTimesformerCyclicAttn"
     "iTransformer"
     "PatchTST"
-    "DLinear"
-    "TimesNet"
     "TimeMixer"
     "TimeXer"
 )
@@ -42,6 +41,7 @@ declare -A datasets=(
     ["ETTm1"]="input_dims=7 main_cycle=96 root_path=./dataset/ETT-small/ stride=1 data_path=ETTm1.csv data=custom"
     ["ETTh2"]="input_dims=7 main_cycle=24 root_path=./dataset/ETT-small/ stride=1 data_path=ETTh2.csv data=ETTh1"
     ["ETTm2"]="input_dims=7 main_cycle=96 root_path=./dataset/ETT-small/ stride=1 data_path=ETTm2.csv data=custom"
+    ["Exchange"]="input_dims=7 main_cycle=96 root_path=./dataset/exchange_rate/ stride=1 data_path=exchange_rate.csv data=custom"
     #Other datasets
     #["AustrailianElectricityDemand"]="input_dims=1 main_cycle=48 root_path=./dataset/UTSD-full-npy/Energy/australian_electricity_demand_dataset stride=100 data_path=random.csv data=UTSD"
     #["AustraliaRainfall"]="input_dims=3 main_cycle=24 root_path=./dataset/UTSD-full-npy/Environment/AustraliaRainfall stride=100 data_path=random.csv data=UTSD"
