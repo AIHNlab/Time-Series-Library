@@ -86,6 +86,34 @@ def show_dataframe_with_index(df, multiindex=None):
 results_file = "results_performance_exp.txt"
 
 results = import_results(results_file)
+results["time"] = np.ceil(results["time"]) # ceil to next integer for better visibility
 
-show_dataframe_with_index(results, multiindex=["model", "dataset"])
-show_dataframe_with_index(results, multiindex=["dataset","model"])
+# exclude datasets and models
+excl_datasets = ["Electricity", "Traffic", "ERA5Surface", "ERA5Pressure"]
+excl_models = ["TimeMixer"]
+results = results[~results.index.get_level_values("dataset").isin(excl_datasets)]
+results = results[~results.index.get_level_values("model").isin(excl_models)]
+
+
+#****************************** Expressive Table **********************************
+
+# show_dataframe_with_index(results, multiindex=["model", "dataset"])
+# show_dataframe_with_index(results, multiindex=["dataset","model"])
+
+
+#****************************** Pivot Table **********************************
+
+# make table with index 'model' and columns that are the datasets (currently in multiindex). Use time as the values in the table
+results_pivot= results.pivot_table(index="model", columns="dataset", values="time").astype(int)
+
+# add index with sum
+results_pivot.loc["sum"] = results_pivot.sum().astype(int)
+results_pivot.sort_values(by="sum", axis=1, inplace=True)
+
+# add column with sum time in the end
+results_pivot["sum"] = results_pivot.sum(axis=1).astype(int)
+results_pivot.sort_values(by="sum", inplace=True)
+results_pivot = pd.concat([results_pivot.loc[results_pivot.index != "sum"], results_pivot.loc[["sum"]]])
+results_pivot.loc['sum', 'sum'] = ''
+
+show_dataframe_with_index(results_pivot)
