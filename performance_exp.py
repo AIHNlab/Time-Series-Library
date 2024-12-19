@@ -47,7 +47,7 @@ if __name__ == '__main__':
     args = parse_args()
     
     # overwrite args with worst case config
-    if args.model_id == 'TimeMixer':
+    if args.model == 'TimeMixer':
         for key, value in TIME_EXP_CONFIG_TIMEMIXER.items():
             setattr(args, key, value)
     else:
