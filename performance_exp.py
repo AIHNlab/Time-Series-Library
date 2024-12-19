@@ -18,8 +18,21 @@ from run import parse_args
 TIME_EXP_CONFIG = {
     'seq_len': 720,
     'pred_len': 720,
-    'e_layers': 5,
+    'e_layers': 4,
     'd_model': 512,
+    'd_ff': 512,
+    'batch_size': 32,
+    'train_epochs': 1,
+    'results_file': 'results_performance_exp.txt'
+}
+
+TIME_EXP_CONFIG_TIMEMIXER = {
+    'seq_len': 720,
+    'pred_len': 720,
+    'e_layers': 3,
+    'd_model': 128,
+    'd_ff': 128,
+    'batch_size': 8,
     'train_epochs': 1,
     'results_file': 'results_performance_exp.txt'
 }
@@ -34,8 +47,12 @@ if __name__ == '__main__':
     args = parse_args()
     
     # overwrite args with worst case config
-    for key, value in TIME_EXP_CONFIG.items():
-        setattr(args, key, value)
+    if args.model_id == 'TimeMixer':
+        for key, value in TIME_EXP_CONFIG_TIMEMIXER.items():
+            setattr(args, key, value)
+    else:
+        for key, value in TIME_EXP_CONFIG.items():
+            setattr(args, key, value)
     
     # args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
     args.use_gpu = True if torch.cuda.is_available() else False
