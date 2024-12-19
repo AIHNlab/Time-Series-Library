@@ -89,7 +89,7 @@ def objective(trial):
         setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
 
         print(f"Starting trial {trial.number}")
-        exp.train(setting, trial)
+        exp.train(setting, trial, save_ckp=False)
 
         # Validate
         vali_data, vali_loader = exp._get_data(flag='val')
