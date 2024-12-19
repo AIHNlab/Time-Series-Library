@@ -28,20 +28,20 @@ model_names=(
 # Datasets and their specific settings
 declare -A datasets=(
     #Datasets that will be used in the final experiments
-    ["ERA5Surface"]="input_dims=75 main_cycle=8 root_path=./dataset/UTSD-full-npy/Nature/ERA5/surface stride=10 data_path=random.csv data=UTSD"
-    ["ERA5Pressure"]="input_dims=75 main_cycle=8 root_path=./dataset/UTSD-full-npy/Nature/ERA5/pressure stride=10 data_path=random.csv data=UTSD"
+    #["ERA5Surface"]="input_dims=75 main_cycle=8 root_path=./dataset/UTSD-full-npy/Nature/ERA5/surface stride=10 data_path=random.csv data=UTSD"
+    #["ERA5Pressure"]="input_dims=75 main_cycle=8 root_path=./dataset/UTSD-full-npy/Nature/ERA5/pressure stride=10 data_path=random.csv data=UTSD"
     ["BenzeneConcentration"]="input_dims=8 main_cycle=24 root_path=./dataset/UTSD-full-npy/Environment/BenzeneConcentration stride=100 data_path=random.csv data=UTSD"
-    ["MotorImagery"]="input_dims=64 main_cycle=24 root_path=./dataset/UTSD-full-npy/Health/MotorImagery stride=100 data_path=random.csv data=UTSD"
-    ["TDBrain"]="input_dims=33 main_cycle=24 root_path=./dataset/UTSD-full-npy/Health/TDBrain_csv stride=100 data_path=random.csv data=UTSD"
+    ["MotorImagery"]="input_dims=64 main_cycle=96 root_path=./dataset/UTSD-full-npy/Health/MotorImagery stride=100 data_path=random.csv data=UTSD"
+    ["TDBrain"]="input_dims=33 main_cycle=48 root_path=./dataset/UTSD-full-npy/Health/TDBrain_csv stride=100 data_path=random.csv data=UTSD"
     ["BeijingAir"]="input_dims=9 main_cycle=24 root_path=./dataset/UTSD-full-npy/Environment/BeijingPM25Quality stride=100 data_path=random.csv data=UTSD"
-    ["Electricity"]="input_dims=50 main_cycle=24 root_path=./dataset/electricity/ stride=100 data_path=electricity.csv data=custom"
+    #["Electricity"]="input_dims=50 main_cycle=24 root_path=./dataset/electricity/ stride=1 data_path=electricity.csv data=custom"
     ["Weather"]="input_dims=21 main_cycle=24 root_path=./dataset/weather/ stride=1 data_path=weather.csv data=custom"
-    ["Traffic"]="input_dims=50 main_cycle=24 root_path=./dataset/traffic/ stride=1 data_path=traffic.csv data=custom"
+    #["Traffic"]="input_dims=50 main_cycle=24 root_path=./dataset/traffic/ stride=1 data_path=traffic.csv data=custom"
     ["ETTh1"]="input_dims=7 main_cycle=24 root_path=./dataset/ETT-small/ stride=1 data_path=ETTh1.csv data=ETTh1"
     ["ETTm1"]="input_dims=7 main_cycle=96 root_path=./dataset/ETT-small/ stride=1 data_path=ETTm1.csv data=custom"
     ["ETTh2"]="input_dims=7 main_cycle=24 root_path=./dataset/ETT-small/ stride=1 data_path=ETTh2.csv data=ETTh1"
     ["ETTm2"]="input_dims=7 main_cycle=96 root_path=./dataset/ETT-small/ stride=1 data_path=ETTm2.csv data=custom"
-    ["Exchange"]="input_dims=7 main_cycle=96 root_path=./dataset/exchange_rate/ stride=1 data_path=exchange_rate.csv data=custom"
+    ["Exchange"]="input_dims=8 main_cycle=96 root_path=./dataset/exchange_rate/ stride=1 data_path=exchange_rate.csv data=custom"
     #Other datasets
     #["AustrailianElectricityDemand"]="input_dims=1 main_cycle=48 root_path=./dataset/UTSD-full-npy/Energy/australian_electricity_demand_dataset stride=100 data_path=random.csv data=UTSD"
     #["AustraliaRainfall"]="input_dims=3 main_cycle=24 root_path=./dataset/UTSD-full-npy/Environment/AustraliaRainfall stride=100 data_path=random.csv data=UTSD"
@@ -51,7 +51,7 @@ declare -A datasets=(
 )
 
 # Sequence length options (same for all datasets)
-seq_lens=(96 192 336 720)
+seq_lens=(720)
 
 # Common settings
 label_len=24
@@ -67,7 +67,7 @@ down_sampling_layers=3
 down_sampling_method="avg"
 down_sampling_window=2
 des="Exp"
-results_file="results_complete.txt"
+results_file="results_hpo.txt"
 
 # Loop through datasets
 for dataset in "${!datasets[@]}"; do
