@@ -151,6 +151,12 @@ def parse_args():
     parser.add_argument('--split', type=float, default=0.9, help='training set ratio')
     parser.add_argument('--results_file', type=str, help='alternative file to write final results to')    
 
+    #HP params
+    parser.add_argument('--n_trials', type=int, default=40, help='number of trials for hyperparameter optimization (optuna)')
+    parser.add_argument('--min_resource', type=int, default=10, help='Minimum number of epochs (optuna)')
+    parser.add_argument('--reduction_factor', type=int, default=2, help='Factor to reduce the number of trials (optuna)')
+    parser.add_argument('--min_early_stopping_rate', type=int, default=0, help='Specifies the minimum early stopping rate (optuna)')
+
     args = parser.parse_args()
     
     return args
