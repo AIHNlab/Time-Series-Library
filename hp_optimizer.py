@@ -15,6 +15,8 @@ from datetime import datetime
 from run import parse_args
 from optuna.pruners import SuccessiveHalvingPruner
 
+import shutil
+
 def save_trials_callback(study, trial):
     """Save trial results to CSV after each trial"""
     global last_trial_file
@@ -89,13 +91,19 @@ def objective(trial):
         setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
 
         print(f"Starting trial {trial.number}")
-        exp.train(setting, trial, save_ckp=False)
+        exp.train(setting, trial)
 
         # Validate
         vali_data, vali_loader = exp._get_data(flag='val')
         criterion = exp._select_criterion()
         val_loss = exp.vali(vali_data, vali_loader, criterion)
         print(f"Trial {trial.number} validation loss: {val_loss}")
+        
+        # Clean up any leftover files/resources
+        setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
+        cleanup_path = os.path.join('./checkpoints/', setting)
+        if os.path.exists(cleanup_path):
+            shutil.rmtree(cleanup_path)
 
         return val_loss
 
@@ -115,7 +123,6 @@ def objective(trial):
         setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
         cleanup_path = os.path.join('./checkpoints/', setting)
         if os.path.exists(cleanup_path):
-            import shutil
             shutil.rmtree(cleanup_path)
             
         # Return worst possible value to ensure failed trials aren't selected
