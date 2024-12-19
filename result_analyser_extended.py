@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-def parse_multiple_datasets(file_path, datasets, forecast_horizon):
+def parse_multiple_datasets(file_path, datasets, forecast_horizon, is_mse=True):
     combined_data = {}
     
     with open(file_path, 'r') as file:
@@ -30,11 +30,13 @@ def parse_multiple_datasets(file_path, datasets, forecast_horizon):
                 
                 seq_len_match = re.search(r"_sl(\d+)_", model_line)
                 seq_len = int(seq_len_match.group(1)) if seq_len_match else None
-                mse_match = re.search(r"mse:([\d.]+)", metrics_line)
-                mse = float(mse_match.group(1)) if mse_match else None
-                
-                #if model_name in ["iTimesformerCyclicAttnMLPTrend"]:
-                #    continue
+                if is_mse:
+                    mse_match = re.search(r"mse:([\d.]+)", metrics_line)
+                    mse = float(mse_match.group(1)) if mse_match else None
+                else:
+                    mse_match = re.search(r"mae:([\d.]+)", metrics_line)
+                    mse = float(mse_match.group(1)) if mse_match else None
+
 
                 if model_name not in data:
                     data[model_name] = {}
@@ -53,7 +55,7 @@ def parse_multiple_datasets(file_path, datasets, forecast_horizon):
     combined_df = pd.concat(dfs, keys=datasets, names=['Dataset', 'Models'])
     return combined_df
 
-def plot_multiple_datasets_mse(df, forecast_horizon):
+def plot_multiple_datasets(df, forecast_horizon, is_mse):
     # Create dataset separator rows
     datasets = df.index.get_level_values('Dataset').unique()
     new_data = []
@@ -112,7 +114,12 @@ def plot_multiple_datasets_mse(df, forecast_horizon):
         cell = table[row_idx+1, col_idx]
         cell.set_text_props(weight='bold')
     
-    plt.title(f'MSE Results for forecast length: {forecast_horizon}')
+    if is_mse:
+        metric='MSE'
+    else:
+        metric='MAE'
+        
+    plt.title(f'{metric} Results for forecast length: {forecast_horizon}')
     plt.tight_layout()
     plt.show()
     
@@ -142,19 +149,41 @@ def total_best_models_per_timestep(df_combined):
     counts = counts.set_index('Timestep').drop('TimestepNum', axis=1)
     return counts
 
+def parse_and_average_multiple_files(file_paths, datasets, forecast_horizon, is_mse=True):
+    
+    # List to hold individual DataFrames
+    dataframes = []
+    
+    for file_path in file_paths:
+        # Parse each file and append to the list
+        df = parse_multiple_datasets(file_path, datasets, forecast_horizon, is_mse)
+        dataframes.append(df)
+    
+    # If only one DataFrame is provided, return it directly
+    if len(dataframes) == 1:
+        return dataframes[0], None
+    
+    # Combine DataFrames by taking the mean across the list
+    df_combined_mean = pd.concat(dataframes).groupby(level=[0, 1]).mean()
+    df_combined_std = pd.concat(dataframes).groupby(level=[0, 1]).std()
+    
+    return df_combined_mean, df_combined_std
+
 # Example usage:
 #file_path = "./result_long_term_forecast_UTSD_3run.txt"
 #datasets = ["KDDCup2018", "ERA5Surface", "AustrailianElectricityDemand", "BenzeneConcentration", "MotorImagery", "TDBrain", "LondonSmartMeters", "AustraliaRainfall", "BeijingAir", "PedestrianCounts"]  # Add your datasets here
 
-file_path = "./result_long_term_forecast_Benchmark_2run.txt"
-datasets = ["Electricity", "Weather", "Traffic", "ETTh2", "ETTm2"] 
+file_paths = ["./results_complete_0.txt", "./results_complete_1.txt", "./results_complete_2.txt"]
+datasets = ["ERA5Surface", "ERA5Pressure","BenzeneConcentration", "MotorImagery", "TDBrain", "BeijingAir", "ETTh1", "ETTm1", "ETTh2", "ETTm2", "Weather", "Traffic", "Electricity"]
 
 forecast_horizon = 96
+is_mse = True
 
 # Parse and plot
-df_combined = parse_multiple_datasets(file_path, datasets, forecast_horizon)
-print(df_combined)
-print(total_best_models_per_timestep(df_combined))
-plot_multiple_datasets_mse(df_combined, forecast_horizon)
+df_combined_mean, df_combined_std = parse_and_average_multiple_files(file_paths, datasets, forecast_horizon, is_mse)
+print(df_combined_mean)
+print(df_combined_std)
+print(total_best_models_per_timestep(df_combined_mean))
+plot_multiple_datasets(df_combined_mean, forecast_horizon, is_mse)
 
 #tools.display_dataframe_to_user(name="Parsed Forecast Results by Cycles (Linebreak Handling)", dataframe=df_cycles_linebreaks)
