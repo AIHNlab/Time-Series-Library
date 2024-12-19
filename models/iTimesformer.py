@@ -247,6 +247,12 @@ class Model(nn.Module):
 
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+        # pad the input sequence at the end such that it is divisible by main_cycle
+        if x_enc.shape[1] % self.main_cycle:
+            pad_len = self.main_cycle - x_enc.shape[1] % self.main_cycle
+            x_enc = F.pad(x_enc, (0, 0, 0, pad_len), 'replicate')
+            x_mark_enc = F.pad(x_mark_enc, (0, 0, 0, pad_len), 'constant', 0)
+            
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             #print("Model Trend:", self.model_trend)
             if self.model_trend:
