@@ -88,8 +88,8 @@ def parse_args():
     # optimization
     parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
-    parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
-    parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
+    parser.add_argument('--train_epochs', type=int, default=15, help='train epochs')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
     parser.add_argument('--des', type=str, default='test', help='exp description')
@@ -153,7 +153,7 @@ def parse_args():
 
     #HP params
     parser.add_argument('--n_trials', type=int, default=40, help='number of trials for hyperparameter optimization (optuna)')
-    parser.add_argument('--min_resource', type=int, default=10, help='Minimum number of epochs (optuna)')
+    parser.add_argument('--min_resource', type=int, default=3, help='Minimum number of epochs (optuna)')
     parser.add_argument('--reduction_factor', type=int, default=2, help='Factor to reduce the number of trials (optuna)')
     parser.add_argument('--min_early_stopping_rate', type=int, default=0, help='Specifies the minimum early stopping rate (optuna)')
 

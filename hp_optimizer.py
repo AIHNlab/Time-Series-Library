@@ -60,7 +60,7 @@ def objective(trial):
         #if any(dataset in args.model_id for dataset in ["ETTm2"]):
         #    args.seq_len = trial.suggest_categorical('seq_len', [96, 192, 384, 480])
         #args.seq_len = trial.suggest_categorical('seq_len', [24, 96, 192, 336, 512])
-        args.train_epochs = 50#trial.suggest_int('train_epochs', 10, 100) 
+        #args.train_epochs = 50#trial.suggest_int('train_epochs', 10, 100) 
         args.seq_len = trial.suggest_categorical('seq_len', [96, 192, 336, 720])
         args.learning_rate = trial.suggest_categorical('learning_rate', [1e-5, 1e-4, 1e-3, 1e-2])
         if args.model == "TimeMixer":
