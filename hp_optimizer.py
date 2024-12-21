@@ -183,6 +183,8 @@ if __name__ == '__main__':
     for param_name, param_value in trial.params.items():
         setattr(args, param_name, param_value)
 
+    args.d_ff = args.d_model
+    args.d_temp = args.d_model
     exp = select_experiment(args)
     #setting = f'hp-search_{args.model_id}_{args.model}'
     for ii in range(args.itr):
