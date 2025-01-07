@@ -19,7 +19,7 @@ def parse_results(file_path, datasets, forecast_horizons, is_mse=True):
             for i in range(0, len(lines), 2):
                 model_line = lines[i]
                 metrics_line = lines[i + 1]
-                exact_pattern = f"hp-search_{dataset}_{horizon}"
+                exact_pattern = f"{dataset}_{horizon}"
                 
                 if exact_pattern in model_line:
                     parts = model_line.split('_')
@@ -99,6 +99,7 @@ file_path = "./results_hpo_lorenzo.txt"
 datasets = ["BenzeneConcentration", "MotorImagery", "TDBrain", "BeijingAir", 
             "ETTh1", "ETTm1", "ETTh2", "ETTm2", "Weather", "Exchange"]
 forecast_horizons = [96, 192, 336, 720]
+is_mse = True
 
-mean_results, std_results = parse_results(file_path, datasets, forecast_horizons)
+mean_results, std_results = parse_results(file_path, datasets, forecast_horizons, is_mse=is_mse)
 plot_results(mean_results, std_results, forecast_horizons)
