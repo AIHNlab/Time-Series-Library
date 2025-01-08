@@ -6,17 +6,19 @@ from layers.SelfAttention_Family import FullAttention, AttentionLayer
 from layers.Embed import DataEmbedding_inverted
 from layers.iTimesformer_Periodicity import PeriodicityReshape, PositionalEncoding
 from .iTimesformer import Model as iTimesformerModel
+import numpy as np
 
 
 class Model(iTimesformerModel):
 
     def __init__(self, configs):
         super(Model, self).__init__(configs)
+        # verify that seq_len is divisible by main_cycle
         self.main_cycle = configs.main_cycle
-        self.n_cycles = configs.seq_len // self.main_cycle
+        self.seq_len = configs.seq_len + configs.seq_len % self.main_cycle
+        self.n_cycles = self.seq_len // self.main_cycle
         self.n_features = configs.c_out
         self.task_name = configs.task_name
-        self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.x_mark_size = configs.x_mark_size
         self.d_model = configs.d_model
@@ -58,9 +60,9 @@ class Model(iTimesformerModel):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.projection = nn.Linear(configs.d_model*self.n_cycles, configs.pred_len, bias=True)
         if self.task_name == 'imputation':
-            self.projection = nn.Linear(configs.d_model, configs.seq_len//self.n_cycles, bias=True) # divide by n_cycles to match the shaping strategy by main_cycle
+            self.projection = nn.Linear(configs.d_model, self.seq_len//self.n_cycles, bias=True) # divide by n_cycles to match the shaping strategy by main_cycle
         if self.task_name == 'anomaly_detection':
-            self.projection = nn.Linear(configs.d_model, configs.seq_len//self.n_cycles, bias=True) # divide by n_cycles to match the shaping strategy by main_cycle
+            self.projection = nn.Linear(configs.d_model, self.seq_len//self.n_cycles, bias=True) # divide by n_cycles to match the shaping strategy by main_cycle
         if self.task_name == 'classification':
             self.act = F.gelu
             self.dropout = nn.Dropout(configs.dropout)

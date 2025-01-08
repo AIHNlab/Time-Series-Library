@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from run import parse_args
+from optuna.pruners import SuccessiveHalvingPruner
 
-# Global to track last file
-last_trial_file = None
+import shutil
 
 def save_trials_callback(study, trial):
     """Save trial results to CSV after each trial"""
@@ -53,47 +53,57 @@ def select_experiment(args):
 def objective(trial):
     try:
         # New/modified hyperparameters from paper
-        if any(dataset in args.model_id for dataset in ["ETTh2", "Electricity", "Traffic"]):
-            args.seq_len = trial.suggest_categorical('seq_len', [24, 72, 168, 336, 480])
-        if any(dataset in args.model_id for dataset in ["Weather"]):
-            args.seq_len = trial.suggest_categorical('seq_len', [144, 288, 576])
-        if any(dataset in args.model_id for dataset in ["ETTm2"]):
-            args.seq_len = trial.suggest_categorical('seq_len', [96, 192, 384, 480])
+        #if any(dataset in args.model_id for dataset in ["ETTh2", "Electricity", "Traffic"]):
+        #    args.seq_len = trial.suggest_categorical('seq_len', [24, 72, 168, 336, 480])
+        #if any(dataset in args.model_id for dataset in ["Weather"]):
+        #    args.seq_len = trial.suggest_categorical('seq_len', [144, 288, 576])
+        #if any(dataset in args.model_id for dataset in ["ETTm2"]):
+        #    args.seq_len = trial.suggest_categorical('seq_len', [96, 192, 384, 480])
         #args.seq_len = trial.suggest_categorical('seq_len', [24, 96, 192, 336, 512])
-        args.learning_rate = trial.suggest_float('learning_rate', 1e-5, 5e-2, log=True)
-        args.e_layers = trial.suggest_int('e_layers', 1, 5)
-        args.d_model = trial.suggest_int('d_model', 16, 512, step=16)
-        args.train_epochs = trial.suggest_int('train_epochs', 10, 100)
+        #args.train_epochs = 50#trial.suggest_int('train_epochs', 10, 100) 
+        args.seq_len = trial.suggest_categorical('seq_len', [96, 192, 336, 720])
+        args.learning_rate = trial.suggest_categorical('learning_rate', [1e-5, 1e-4, 1e-3, 1e-2])
+        if args.model == "TimeMixer":
+            args.e_layers = trial.suggest_int('e_layers', 1, 3)
+            args.d_model = trial.suggest_categorical('d_model', [16, 32, 64, 128])            
+        else:
+            args.e_layers = trial.suggest_int('e_layers', 1, 4)
+            args.d_model = trial.suggest_categorical('d_model', [16, 32, 64, 128, 256, 512])
 
         # Suggest hyperparameters
         #args.d_model = trial.suggest_int('d_temp', 128, 1024, step=128)
         #args.n_heads = trial.suggest_int('n_heads', 1, 8)
         #args.e_layers = trial.suggest_int('e_layers', 1, 3)
         #args.d_layers = trial.suggest_int('d_layers', 1, 4)
-        args.d_ff = trial.suggest_int('d_ff', 256, 2048, step=256)
-        args.learning_rate = trial.suggest_float('learning_rate', 1e-5, 1e-3, log=True)
+        args.d_ff = args.d_model#trial.suggest_int('d_ff', 256, 2048, step=256)
         #args.batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
         #args.dropout = trial.suggest_float('dropout', 0.0, 0.5)
         #args.factor = trial.suggest_int('factor', 1, 5)
 
         # iTimesformer parameters
         #args.main_cycle = trial.suggest_int('main_cycle', 1, 24)  
-        args.d_temp = trial.suggest_int('d_temp', 128, 1024, step=128)
+        args.d_temp = args.d_model#trial.suggest_int('d_temp', 128, 1024, step=128)
         #args.x_mark_size = trial.suggest_int('x_mark_size', 0, 8)
-        args.full_mlp = trial.suggest_categorical('full_mlp', [True, False])
-        args.model_trend = trial.suggest_categorical('model_trend', [True, False])    
+        #args.full_mlp = trial.suggest_categorical('full_mlp', [True, False])
+        #args.model_trend = trial.suggest_categorical('model_trend', [True, False])    
 
         exp = select_experiment(args)
         setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
 
         print(f"Starting trial {trial.number}")
-        exp.train(setting)
+        exp.train(setting, trial)
 
         # Validate
         vali_data, vali_loader = exp._get_data(flag='val')
         criterion = exp._select_criterion()
         val_loss = exp.vali(vali_data, vali_loader, criterion)
         print(f"Trial {trial.number} validation loss: {val_loss}")
+        
+        # Clean up any leftover files/resources
+        setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
+        cleanup_path = os.path.join('./checkpoints/', setting)
+        if os.path.exists(cleanup_path):
+            shutil.rmtree(cleanup_path)
 
         return val_loss
 
@@ -113,18 +123,22 @@ def objective(trial):
         setting = f'hp_search_{args.model_id}_{args.model}/trial_{trial.number}'
         cleanup_path = os.path.join('./checkpoints/', setting)
         if os.path.exists(cleanup_path):
-            import shutil
             shutil.rmtree(cleanup_path)
             
         # Return worst possible value to ensure failed trials aren't selected
         return float('inf')
 
+def set_seed(seed):
+    """Set the random seed for reproducibility."""
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
 if __name__ == '__main__':
     # Set random seeds for reproducibility
-    fix_seed = 2021
-    random.seed(fix_seed)
-    torch.manual_seed(fix_seed)
-    np.random.seed(fix_seed)
+    hp_seed = 2021
+    test_seed = hp_seed
+    set_seed(hp_seed)
 
     args = parse_args()
 
@@ -140,11 +154,20 @@ if __name__ == '__main__':
     # Ensure 'is_training' is set to True
     args.is_training = 1
 
-    # Initialize Optuna study
-    study = optuna.create_study(direction='minimize')
+    # Global to track last file
+    last_trial_file = None
+
+    # Initialize Optuna study with SuccessiveHalvingPruner
+    pruner = SuccessiveHalvingPruner(
+        min_resource=args.min_resource,          # Minimum number of epochs
+        reduction_factor=args.reduction_factor,      # Factor to reduce the number of trials
+        min_early_stopping_rate=args.min_early_stopping_rate
+    )
+
+    study = optuna.create_study(direction='minimize', pruner=pruner)
 
     # Start the optimization
-    study.optimize(objective, n_trials=40, callbacks=[save_trials_callback])
+    study.optimize(objective, n_trials=args.n_trials, callbacks=[save_trials_callback])
 
     # Output the best hyperparameters
     print('Number of finished trials:', len(study.trials))
@@ -160,9 +183,34 @@ if __name__ == '__main__':
     for param_name, param_value in trial.params.items():
         setattr(args, param_name, param_value)
 
+    args.d_ff = args.d_model
+    args.d_temp = args.d_model
     exp = select_experiment(args)
-    setting = f'hp_search_{args.model_id}_{args.model}'
-    exp.train(setting)
+    #setting = f'hp-search_{args.model_id}_{args.model}'
+    for ii in range(args.itr):
+        test_seed += 1
+        set_seed(test_seed)
+        setting = '{}_{}_{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_expand{}_dc{}_fc{}_eb{}_dt{}_{}_{}_{}'.format(
+            "hp-search",
+            args.model_id,
+            args.model,
+            args.data,
+            args.features,
+            args.seq_len,
+            args.label_len,
+            args.pred_len,
+            args.d_model,
+            args.n_heads,
+            args.e_layers,
+            args.d_layers,
+            args.d_ff,
+            args.expand,
+            args.d_conv,
+            args.factor,
+            args.embed,
+            args.distil,
+            args.des, ii, test_seed)
+        exp.train(setting)
 
-    # Test the model
-    exp.test(setting)
+        # Test the model
+        exp.test(setting)
